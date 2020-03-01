@@ -1,0 +1,35 @@
+---
+title: "EWB_H4"
+author: "Evan Woelk Balzer"
+date: "20/02/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#1 I read it!
+
+#2
+
+When I was in elementary school, my mom bought me a book called '882 1/2 Facts About the Titanic', so I'm really hoping I know enough about the ship and it's historical context to get this right.
+
+First, I suspect that the class to which a passenger belonged influenced their survival. Higher class citizens had numerous social advantages, and I predict that they were also shown preference when loading life boats. Similarly, I predict that the price of the ticket reflects the social status of the ticket owner, and as such that individuals with more expensive tickets had a higher likelihood of being taken aboard life boats. Another proxy for social status (and therefore survivorship) is the country of residence. I predict that American and British passengers had higher status than those from other countries, and as such were more likely to survive for the same reasons listed above. I also know the "women and children first" trope, and thus predict that gender influenced survivorship. Finally, I know that individuals lower in the boat were in many cases shut out by closing bulkheads and cascading water, and thus predict that cabin number reflects where individuals where spatially within the ship, and that it would thus predict the ease with which individuals could escape its interior.
+
+#3
+
+
+```{r calling packages}
+library(vcd)
+library(popbio)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
