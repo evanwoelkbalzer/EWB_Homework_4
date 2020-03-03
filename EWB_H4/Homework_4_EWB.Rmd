@@ -14,22 +14,170 @@ knitr::opts_chunk$set(echo = TRUE)
 
 When I was in elementary school, my mom bought me a book called '882 1/2 Facts About the Titanic', so I'm really hoping I know enough about the ship and it's historical context to get this right.
 
-First, I suspect that the class to which a passenger belonged influenced their survival. Higher class citizens had numerous social advantages, and I predict that they were also shown preference when loading life boats. Similarly, I predict that the price of the ticket reflects the social status of the ticket owner, and as such that individuals with more expensive tickets had a higher likelihood of being taken aboard life boats. Another proxy for social status (and therefore survivorship) is the country of residence. I predict that American and British passengers had higher status than those from other countries, and as such were more likely to survive for the same reasons listed above. I also know the "women and children first" trope, and thus predict that gender influenced survivorship. Finally, I know that individuals lower in the boat were in many cases shut out by closing bulkheads and cascading water, and thus predict that cabin number reflects where individuals where spatially within the ship, and that it would thus predict the ease with which individuals could escape its interior.
+First, I suspect that the class to which a passenger belonged influenced their survival. Higher class citizens had numerous social advantages, and I predict that they were also shown preference when loading life boats. Another proxy for social status (and therefore survivorship) is the country of residence. I predict that American and British passengers had higher status than those from other countries, and as such were more likely to survive for the same reasons listed above. I also know the "women and children first" trope, and thus predict that gender influenced survivorship. I also expect that age will influence survivorship, and predict that because children were chosen to be placed on life rafts and the elderly would be less suited to surviving the cold, younger individuals will have higher survival. Finally, I know that individuals situated lower in the boat upon striking the iceberg were in many cases shut out by closing bulkheads and cascading water, and thus predict that cabin number reflects where individuals where spatially within the ship.
 
 #3
-
 
 ```{r calling packages}
 library(vcd)
 library(popbio)
+library(tidyverse)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r reading in the data and plotting it}
+#reading in the data as a tibble#
+titanic <- read_csv("titanic.csv", col_names = TRUE, cols(pclass = col_factor(), survived = col_double(), Residence = col_factor(), name = col_character(), age = col_double(), sibsp = col_integer(), parch = col_integer(), ticket = col_character(), fare = col_double(), cabin = col_character(), embarked = col_character(), boat = col_character(), body = col_character(), home.dest = col_character(), Gender = col_factor()
+))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r Plotting categorical data}
+#Plotting each against survivorship#
+library(vcd)
+mosaic(survived~Gender, data = titanic)
+mosaic(survived~pclass, data = titanic)
+mosaic(survived~Residence, data = titanic)
+```
+
+```{r Plotting continuous data}
+library(popbio)
+#getting just the age, fare and survivorship columns together without any nas#
+vartitanic <- titanic %>% select(1, 3, 5, 9, 15, 2)
+vartitanic
+titanona<-drop_na(vartitanic)
+titanona
+
+#actually plotting the data#
+logi.hist.plot(titanona$age, titanona$survived, boxp=FALSE,type="hist",col="gray", xlabel="Passenger Age")
+logi.hist.plot(titanona$fare, titanona$survived, boxp=FALSE,type="hist",col="gray", xlabel="Fare price")
+```
+
+#Question 4
+```{r Selecting the best model}
+library(bestglm)
+titanona
+#the bestglm function does not like tibbles apparently#
+#time to convert it over!#
+titanewna <- as.data.frame(titanona)
+titanewna
+bestglm(titanewna,IC="AIC",family=binomial)
+```
+
+#Question 5
+```{r Fitting the best model, including class, residence, age, and gender}
+titamodel <- glm(survived~pclass+Residence+age+Gender, data = titanewna)
+summary.lm(titamodel)
+```
+
+#Question 6
+```{r Purposeful selection, testing each candidate parameter}
+univariate.pclass <- glm(survived~pclass, data=titanewna, family=binomial(link="logit"))
+summary(univariate.pclass)
+#Outcome: significant#
+
+univariate.age <- glm(survived~age, data=titanewna, family=binomial(link="logit"))
+summary(univariate.age)
+#Outcome: significant#
+
+univariate.Residence <- glm(survived~Residence, data=titanewna, family=binomial(link="logit"))
+summary(univariate.Residence)
+#Outcome: significant#
+
+univariate.fare <- glm(survived~fare, data=titanewna, family=binomial(link="logit"))
+summary(univariate.fare)
+#Outcome: significant#
+
+univariate.Gender <- glm(survived~Gender, data=titanewna, family=binomial(link="logit"))
+summary(univariate.Gender)
+#Outcome: significant#
+
+#all parameters are significant, p < 0.25, therefore include all in the final model#
+
+titapurpose <- glm(survived~pclass+Residence+age+fare+Gender, data=titanewna, family=binomial(link="logit"))
+summary(titapurpose)
+
+#Residence and fare were significant, but less so than others
+
+#simpler model without Residence, the weakest predictor
+titapurpose1 <- glm(survived~pclass+fare+age+Gender, data=titanewna, family=binomial(link="logit"))
+summary(titapurpose1)
+#fare was not significant in this model
+
+#simpler model without fare
+titapurpose2 <- glm(survived~pclass+age+Residence+Gender, data=titanewna, family=binomial(link="logit"))
+summary(titapurpose2)
+#Residence was not significant in this model
+
+#simplest model, lacking both fare and Residence
+titapurpose3 <- glm(survived~pclass+age+Gender, data=titanewna, family=binomial(link="logit"))
+summary(titapurpose3)
+#all parameters significant
+
+#Comparison of all purpose selected models#
+library(lmtest)
+lrtest(titapurpose, titapurpose1, titapurpose2, titapurpose3)
+#Model including only class, age, and gender is the best model, but narrowly so#
+```
+
+#Question 7
+The purposeful selection method identified many of the same parameters as significant, but the comparison among them further refined the final model. In the end, the purposeful model had one less parameter and is thus slightly more parsimonious. In short, the two methods provided similar, albeit different results.
+
+#Question 8
+```{r Plotting effects of parameters included in the best model}
+library(effects)
+plot(allEffects(titapurpose3))
+```
+
+The parameters had effects in the directions I predicted. Younger individuals were more likely to survive than older individuals, women were more likely to survive than men, and Americans were significantly more likely to survive than British passengers, and both were more likely to survive than passengers of other residence. It is likely that both class and residence act as proxies for status and thus better places on the ship relative to life boats and a higher ability to secure places aboard them.
+
+#Question 9 
+```{r running model diagnostics}
+#plotting residuals of each predictor variable
+library(effects)
+library(car)
+residualPlots(titapurpose3)
+print(titapurpose3)
+
+#checking fpr for studentized residuals with a Bonferonni p<0.05
+outlierTest(titapurpose3)
+
+#testing for leverage, displaying the three values furthest from the average
+influenceIndexPlot(titapurpose3, id.n=3)
+
+#testing for influential observations
+influencePlot(titapurpose3)
+
+#testing for multicollinearity
+vif(titapurpose3)
+```
+
+
+#Question 10
+The residuals under each parameter all seem to have the same variation. There is a slight lack in overlap in the gender values, but these plots appear to be very similar to one another. Further diagnostics will determine whether this difference is worth considering. 
+
+There were no studentized residuals with p < 0.05 under the applied Bonferroni correction.
+
+Cook's distance values were generally quite small, but several values appear to violate the influence criteria set by this test. The standardized residuals were randomly distributed around 0, and none were large enough to warrant concern. The bonferroni p-values were all centred around 1, and the hat values were generally low, with the exception of several that were noticably high. When tested for influence, these same suspicious values (25, 94, 206, 273, and 514) had particularly high influence and leverage.
+
+There was no evidence of multicollinearity (all VIF values < 4).
+
+#Question 11
+```{r K-fold testing}
+library(caret)
+ctrl <- trainControl(method = "repeatedcv", number = 10, savePredictions = TRUE)
+titanewna$survived=as.factor(titanewna$survived)
+train(survived ~age+pclass+Residence,data=titanewna, method="glm", family=binomial(link='logit'),
+      trControl = ctrl, tuneLength = 5)
+```
+
+#Question 12
+My model had a 69.2% accuracy, and a Kappa statistic of 0.33. These results indicate that my model was moderate-poorly successful at predicting survival of Titanic passengers.
+
+#Question 13
+```{r generating a confusion matrix}
+titanic_predictions<-predict(titapurpose3, newdata=titanewna,type="response")
+confusionMatrix(data=as.factor(as.numeric(titanic_predictions>0.5)),reference=titanewna$survived)
+```
+
+#Question 14
+The confusion matrix provided a much higher estimation of both accuracy and kappa evaluation. I suspect that the differences between the two accuracy evaluations can be attributed to how the models were constructed. The K-fold validation demonstrated that the model performed less well when used against "new" observations, whereas the confusion matrix (model performing with all available data) evaluation provided a more optimistic evaluation of the model. Since confusion matrices are a snapshot evaluation of a model's predictive power of the whole dataset, and k-fold validation asks whether a model performs well given new data, the discrepancy in accuracy is due to the way in which training biases the model toward the training data. Since the two evaluations are different (and in particular worse when applied to new data), we can conclude that this model is at best only moderately capable of predicting passenger survival.
